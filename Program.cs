@@ -10,7 +10,14 @@ public static class Program
 
     private static void Main(string[] args)
     {
-        Manual();
+        if (args is ["auto", ..])
+        {
+            Autoplay();
+        }
+        else
+        {
+            Manual();
+        }
     }
 
     private static void Manual()
@@ -59,5 +66,54 @@ public static class Program
             game.PrintBoard();
             Thread.Sleep(MoveDelay);
         }
+    }
+
+    private static void Autoplay()
+    {
+        var game = new Game(BoardSize, StartingBodySize);
+        var solver = new AutoSnake(game, BoardSize);
+
+        var status = Status.Continue;
+
+        game.PrintBoard();
+        var moves = 0;
+
+        var timer = new System.Timers.Timer();
+
+        timer.Interval = MoveDelay;
+        timer.AutoReset = true;
+
+        var mu = new Mutex();
+
+        timer.Elapsed += (sender, args) =>
+        {
+            Console.Clear();
+
+            mu.WaitOne();
+
+            moves++;
+
+            status = solver.Tick();
+            timer.Enabled = status == Status.Continue;
+
+            // Console.WriteLine("moves: " + moves);
+
+            game.PrintBoard();
+
+            mu.ReleaseMutex();
+        };
+
+        timer.Start();
+
+        while (timer.Enabled) ;
+
+        var b = game.GetParseableBoardState();
+        var empty = b.Count(move => move == 'X');
+
+        Console.WriteLine($"Remaining: {empty} / {BoardSize * BoardSize} ({100 * empty / (BoardSize * BoardSize)}%)");
+
+        Console.WriteLine("Move count: " + moves);
+
+        Console.WriteLine(status);
     }
 }
